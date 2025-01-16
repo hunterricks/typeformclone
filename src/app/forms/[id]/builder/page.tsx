@@ -30,6 +30,17 @@ export default async function BuilderPage({
     redirect('/forms')
   }
 
+  // Parse questions array from JSONB
+  const parsedForm = {
+    ...form,
+    questions: form.questions || [],
+    settings: form.settings || {
+      showProgressBar: true,
+      showQuestionNumbers: true,
+      theme: 'system',
+    },
+  }
+
   return (
     <div className="flex h-screen">
       {/* Left Sidebar */}
@@ -70,7 +81,7 @@ export default async function BuilderPage({
         {/* Form Preview */}
         <div className="flex-1 bg-background">
           <div className="max-w-3xl mx-auto py-8">
-            <FormBuilder form={form} />
+            <FormBuilder form={parsedForm} />
           </div>
         </div>
       </div>

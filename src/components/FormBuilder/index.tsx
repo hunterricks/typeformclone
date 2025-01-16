@@ -164,53 +164,49 @@ export default function FormBuilder({ form }: FormBuilderProps) {
     }
   }, [title, description, questions, formSettings, form?.id])
 
-  useEffect(() => {
-    const debounceTimer = setTimeout(saveForm, 1000)
-    return () => clearTimeout(debounceTimer)
-  }, [saveForm])
-
-  const addQuestion = (type: string) => {
+  const addQuestion = useCallback((type: string) => {
     const newQuestion: FormQuestion = {
-      id: Math.random().toString(36).substring(7),
+      id: crypto.randomUUID(),
       type,
       title: '',
       required: false,
-      options: type === 'multiple_choice' || type === 'dropdown' ? ['Option 1', 'Option 2'] : undefined,
-      settings: {
-        multiple: false,
-        randomize: false,
-        allowOther: false,
-        verticalAlign: true,
-      },
+      options: type === 'multiple_choice' || type === 'dropdown' || type === 'picture_choice' 
+        ? ['Option 1', 'Option 2', 'Option 3'] 
+        : undefined,
+      settings: type === 'welcome_screen' || type === 'end_screen'
+        ? { buttonText: type === 'welcome_screen' ? 'Start' : 'Submit' }
+        : {},
     }
-
     setQuestions([...questions, newQuestion])
     setCurrentEditingIndex(questions.length)
-  }
+  }, [questions])
 
-  const updateQuestion = (index: number, updates: Partial<FormQuestion>) => {
+  const updateQuestion = useCallback((index: number, updates: Partial<FormQuestion>) => {
     const newQuestions = [...questions]
     newQuestions[index] = { ...newQuestions[index], ...updates }
     setQuestions(newQuestions)
-  }
+  }, [questions])
 
-  const removeQuestion = (index: number) => {
+  const removeQuestion = useCallback((index: number) => {
     setQuestions(questions.filter((_, i) => i !== index))
-    if (currentEditingIndex === index) {
-      setCurrentEditingIndex(null)
-    }
-  }
+    setCurrentEditingIndex(null)
+  }, [questions])
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event
-
     if (over && active.id !== over.id) {
       const oldIndex = questions.findIndex((q) => q.id === active.id)
       const newIndex = questions.findIndex((q) => q.id === over.id)
-
       setQuestions(arrayMove(questions, oldIndex, newIndex))
     }
-  }
+  }, [questions])
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      saveForm()
+    }, 1000)
+    return () => clearTimeout(timeoutId)
+  }, [title, description, questions, formSettings, saveForm])
 
   return (
     <div className="flex h-screen">
