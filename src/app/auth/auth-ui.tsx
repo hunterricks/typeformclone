@@ -2,13 +2,23 @@
 
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
-import { createClient } from '@supabase/supabase-js'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 export default function AuthUI() {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const router = useRouter()
+  const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        router.push('/')
+      }
+    }
+    checkSession()
+  }, [router, supabase.auth])
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center py-2">
@@ -26,27 +36,28 @@ export default function AuthUI() {
             variables: {
               default: {
                 colors: {
-                  brand: '#000000',
-                  brandAccent: '#333333',
+                  brand: 'hsl(var(--primary))',
+                  brandAccent: 'hsl(var(--primary))',
                   inputBackground: 'transparent',
-                  inputText: 'white',
-                  inputBorder: '#333333',
-                  inputBorderFocus: 'white',
-                  inputBorderHover: '#4d4d4d',
-                  inputPlaceholder: '#666666',
+                  inputText: 'hsl(var(--foreground))',
+                  inputBorder: 'hsl(var(--border))',
+                  inputBorderFocus: 'hsl(var(--ring))',
+                  inputBorderHover: 'hsl(var(--border))',
+                  inputPlaceholder: 'hsl(var(--muted-foreground))',
                 }
               }
             },
             className: {
               container: 'w-full',
-              button: 'bg-white text-black hover:bg-white/90 w-full py-2 rounded-md font-medium',
+              button: 'bg-primary text-primary-foreground hover:bg-primary/90 w-full py-2 rounded-md font-medium',
               input: 'bg-transparent border border-border rounded-md w-full p-2 text-foreground',
               label: 'text-foreground',
               message: 'text-muted-foreground text-sm',
             }
           }}
-          theme="dark"
+          theme="default"
           providers={['google']}
+          redirectTo={`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`}
         />
       </div>
     </div>

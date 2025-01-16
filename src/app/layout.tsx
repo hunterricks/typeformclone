@@ -1,15 +1,16 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { ThemeProvider } from '@/components/theme-provider'
+import { Toaster } from '@/components/ui/toaster'
 import AuthProvider from '@/components/AuthProvider'
 import Navbar from '@/components/Navbar'
-import { ThemeProvider } from '@/components/theme-provider'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'TypeForm Clone',
-  description: 'A beautiful form builder created with Next.js',
+  title: 'Form Builder',
+  description: 'A simple form builder application',
 }
 
 export default function RootLayout({
@@ -22,17 +23,16 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
+          defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
           <AuthProvider>
-            <div className="relative min-h-screen bg-background font-sans antialiased">
+            <div className="relative flex min-h-screen flex-col">
               <Navbar />
-              <main className="relative flex min-h-screen flex-col pt-16">
-                <div className="flex-1">{children}</div>
-              </main>
+              <main className="flex-1 pt-16">{children}</main>
             </div>
+            <Toaster />
           </AuthProvider>
         </ThemeProvider>
       </body>
