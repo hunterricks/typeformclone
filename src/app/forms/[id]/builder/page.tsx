@@ -12,33 +12,36 @@ export default async function BuilderPage({
 }) {
   const supabase = createServerComponentClient({ cookies })
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (userError || !user) {
     redirect('/auth')
   }
 
-  const { data: form } = await supabase
+  const { data: form, error: formError } = await supabase
     .from('forms')
     .select('*')
     .eq('id', params.id)
+    .eq('user_id', user.id)
     .single()
 
-  if (!form || form.user_id !== session.user.id) {
+  if (formError || !form) {
     redirect('/forms')
   }
 
-  // Parse questions array from JSONB
+  // Parse questions and settings from JSONB
   const parsedForm = {
     ...form,
-    questions: form.questions || [],
-    settings: form.settings || {
-      showProgressBar: true,
-      showQuestionNumbers: true,
-      theme: 'system',
-    },
+    questions: typeof form.questions === 'string' 
+      ? JSON.parse(form.questions) 
+      : form.questions || [],
+    settings: typeof form.settings === 'string'
+      ? JSON.parse(form.settings)
+      : form.settings || {
+          showProgressBar: true,
+          showQuestionNumbers: true,
+          theme: 'system',
+        },
   }
 
   return <FormBuilder form={parsedForm} />

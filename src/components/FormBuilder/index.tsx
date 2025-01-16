@@ -26,21 +26,35 @@ export default function FormBuilder({ form }: FormBuilderProps) {
   const { toast } = useToast()
 
   const saveForm = useCallback(async (updates: Partial<Form>) => {
-    if (!form?.id) return
-
-    try {
-      startTransition(async () => {
-        await updateForm(form.id, updates)
-        router.refresh()
-      })
-    } catch (error) {
-      console.error('Error saving form:', error)
+    if (!form?.id) {
       toast({
         title: 'Error',
-        description: 'Failed to save changes',
+        description: 'Form ID is missing',
         variant: 'destructive',
       })
+      return
     }
+
+    console.log('Saving form updates:', updates)
+
+    startTransition(async () => {
+      try {
+        const updatedForm = await updateForm(form.id, updates)
+        console.log('Form updated successfully:', updatedForm)
+        router.refresh()
+        toast({
+          title: 'Success',
+          description: 'Changes saved successfully',
+        })
+      } catch (error) {
+        console.error('Error saving form:', error)
+        toast({
+          title: 'Error',
+          description: error instanceof Error ? error.message : 'Failed to save changes',
+          variant: 'destructive',
+        })
+      }
+    })
   }, [form?.id, router, toast])
 
   const addQuestion = useCallback((type: QuestionType) => {
