@@ -1,6 +1,8 @@
 import { getForm } from '@/app/actions'
 import FormView from '@/components/FormView'
 import { submitFormResponse } from '@/app/actions'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 
 interface FormPageProps {
   params: {
@@ -30,5 +32,19 @@ export default async function FormPage({ params }: FormPageProps) {
     })
   }
 
-  return <FormView form={form} onSubmit={handleSubmit} />
+  return (
+    <div className="flex flex-col min-h-screen">
+      <div className="border-b border-border">
+        <div className="container flex items-center justify-between py-4">
+          <h1 className="text-xl font-medium">{form.title}</h1>
+          <Link href={`/forms/${params.id}/builder`}>
+            <Button>Edit Form</Button>
+          </Link>
+        </div>
+      </div>
+      <div className="flex-1 container py-8">
+        <FormView form={form} onSubmit={handleSubmit} />
+      </div>
+    </div>
+  )
 }

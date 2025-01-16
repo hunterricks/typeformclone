@@ -28,12 +28,14 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <div className="relative flex min-h-screen flex-col">
+            <div className="relative min-h-screen">
               <Navbar />
-              <main className="flex-1 pt-16">{children}</main>
+              <div className="pt-16">
+                {children}
+              </div>
             </div>
-            <Toaster />
           </AuthProvider>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
