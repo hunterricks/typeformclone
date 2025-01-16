@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'TypeForm Clone',
-  description: 'A beautiful form builder created with Next.js, Supabase, and TailwindCSS',
+  description: 'A beautiful form builder created with Next.js',
 }
 
 export default function RootLayout({
@@ -17,11 +17,15 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} antialiased min-h-screen bg-gray-50`}>
+    <html lang="en" className="dark antialiased">
+      <body className={inter.className}>
         <AuthProvider>
-          <Navbar />
-          {children}
+          <div className="relative min-h-screen bg-background font-sans antialiased">
+            <Navbar />
+            <main className="relative flex min-h-screen flex-col pt-16">
+              <div className="flex-1">{children}</div>
+            </main>
+          </div>
         </AuthProvider>
       </body>
     </html>
