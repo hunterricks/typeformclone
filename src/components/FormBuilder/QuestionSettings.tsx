@@ -1,6 +1,6 @@
 'use client'
 
-import { FormQuestion } from '.'
+import { FormQuestion } from '@/types/form'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'

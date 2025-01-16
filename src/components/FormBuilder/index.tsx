@@ -1,158 +1,37 @@
 'use client'
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/use-toast'
-import { Card } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Plus, GripVertical, Trash2, ChevronDown, Settings, Layout, Image } from 'lucide-react'
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core'
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
+import { Plus, Settings2, Pencil, Eye, Share2, BarChart } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import QuestionCard from './QuestionCard'
-import QuestionSettings from './QuestionSettings'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { updateForm } from '@/app/actions'
+import { Form, FormQuestion, QuestionType } from '@/types/form'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
-import { Switch } from '@/components/ui/switch'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-
-export interface FormQuestion {
-  id: string
-  type: string
-  title: string
-  description?: string
-  required?: boolean
-  options?: string[]
-  settings?: {
-    multiple?: boolean
-    randomize?: boolean
-    allowOther?: boolean
-    verticalAlign?: boolean
-    buttonText?: string
-    redirectUrl?: string
-    imageUrl?: string
-  }
-  min?: number
-  max?: number
-}
+import QuestionList from './QuestionList'
+import QuestionTypeMenu from './QuestionTypeMenu'
+import QuestionEditor from './QuestionEditor'
 
 interface FormBuilderProps {
-  form: {
-    id: string
-    title: string
-    description?: string
-    questions: FormQuestion[]
-    settings?: {
-      showProgressBar?: boolean
-      showQuestionNumbers?: boolean
-      theme?: string
-    }
-  }
+  form: Form
 }
 
-const questionTypes = [
-  {
-    category: 'Popular',
-    items: [
-      { type: 'multiple_choice', label: 'Multiple Choice', description: 'Let people choose from multiple options' },
-      { type: 'text', label: 'Short Text', description: 'Collect brief text responses' },
-      { type: 'long_text', label: 'Long Text', description: 'Collect longer text responses' },
-      { type: 'email', label: 'Email', description: 'Collect email addresses' },
-    ],
-  },
-  {
-    category: 'Choice',
-    items: [
-      { type: 'dropdown', label: 'Dropdown', description: 'Show choices in a compact menu' },
-      { type: 'yes_no', label: 'Yes/No', description: 'Simple binary choice' },
-      { type: 'picture_choice', label: 'Picture Choice', description: 'Let people choose between images' },
-      { type: 'ranking', label: 'Ranking', description: 'Let people order options' },
-    ],
-  },
-  {
-    category: 'Contact',
-    items: [
-      { type: 'phone', label: 'Phone Number', description: 'Collect phone numbers' },
-      { type: 'website', label: 'Website', description: 'Collect website URLs' },
-      { type: 'address', label: 'Address', description: 'Collect postal addresses' },
-    ],
-  },
-  {
-    category: 'Date & Time',
-    items: [
-      { type: 'date', label: 'Date', description: 'Ask for a date' },
-      { type: 'time', label: 'Time', description: 'Ask for a time' },
-    ],
-  },
-  {
-    category: 'Layout',
-    items: [
-      { type: 'welcome_screen', label: 'Welcome Screen', description: 'Add an introduction' },
-      { type: 'end_screen', label: 'End Screen', description: 'Add a thank you message' },
-      { type: 'statement', label: 'Statement', description: 'Show text without a question' },
-    ],
-  },
-]
-
 export default function FormBuilder({ form }: FormBuilderProps) {
-  const [title, setTitle] = useState(form?.title || '')
-  const [description, setDescription] = useState(form?.description || '')
   const [questions, setQuestions] = useState<FormQuestion[]>(form?.questions || [])
-  const [currentEditingIndex, setCurrentEditingIndex] = useState<number | null>(null)
-  const [formSettings, setFormSettings] = useState(form?.settings || {
-    showProgressBar: true,
-    showQuestionNumbers: true,
-    theme: 'system',
-  })
+  const [selectedQuestionIndex, setSelectedQuestionIndex] = useState<number | null>(null)
+  const [isPending, startTransition] = useTransition()
   const router = useRouter()
   const { toast } = useToast()
-  const supabase = createClientComponentClient()
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  )
-
-  const saveForm = useCallback(async () => {
+  const saveForm = useCallback(async (updates: Partial<Form>) => {
     if (!form?.id) return
 
     try {
-      const { error } = await supabase
-        .from('forms')
-        .update({
-          title,
-          description,
-          questions,
-          settings: formSettings,
-        })
-        .eq('id', form.id)
-
-      if (error) throw error
-
-      toast({
-        title: 'Changes saved',
-        description: 'Your form has been updated',
+      startTransition(async () => {
+        await updateForm(form.id, updates)
+        router.refresh()
       })
     } catch (error) {
       console.error('Error saving form:', error)
@@ -162,269 +41,141 @@ export default function FormBuilder({ form }: FormBuilderProps) {
         variant: 'destructive',
       })
     }
-  }, [title, description, questions, formSettings, form?.id])
+  }, [form?.id, router, toast])
 
-  const addQuestion = useCallback((type: string) => {
+  const addQuestion = useCallback((type: QuestionType) => {
     const newQuestion: FormQuestion = {
       id: crypto.randomUUID(),
       type,
       title: '',
+      description: '',
       required: false,
-      options: type === 'multiple_choice' || type === 'dropdown' || type === 'picture_choice' 
-        ? ['Option 1', 'Option 2', 'Option 3'] 
-        : undefined,
-      settings: type === 'welcome_screen' || type === 'end_screen'
-        ? { buttonText: type === 'welcome_screen' ? 'Start' : 'Submit' }
-        : {},
     }
-    setQuestions([...questions, newQuestion])
-    setCurrentEditingIndex(questions.length)
-  }, [questions])
+    
+    const newQuestions = [...questions, newQuestion]
+    setQuestions(newQuestions)
+    setSelectedQuestionIndex(newQuestions.length - 1)
+    saveForm({ questions: newQuestions })
+  }, [questions, saveForm])
 
   const updateQuestion = useCallback((index: number, updates: Partial<FormQuestion>) => {
     const newQuestions = [...questions]
     newQuestions[index] = { ...newQuestions[index], ...updates }
     setQuestions(newQuestions)
-  }, [questions])
+    saveForm({ questions: newQuestions })
+  }, [questions, saveForm])
 
-  const removeQuestion = useCallback((index: number) => {
-    setQuestions(questions.filter((_, i) => i !== index))
-    setCurrentEditingIndex(null)
-  }, [questions])
+  const deleteQuestion = useCallback((index: number) => {
+    const newQuestions = questions.filter((_, i) => i !== index)
+    setQuestions(newQuestions)
+    setSelectedQuestionIndex(null)
+    saveForm({ questions: newQuestions })
+  }, [questions, saveForm])
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event
-    if (over && active.id !== over.id) {
-      const oldIndex = questions.findIndex((q) => q.id === active.id)
-      const newIndex = questions.findIndex((q) => q.id === over.id)
-      setQuestions(arrayMove(questions, oldIndex, newIndex))
+  const duplicateQuestion = useCallback((index: number) => {
+    const questionToDuplicate = questions[index]
+    const newQuestion = {
+      ...questionToDuplicate,
+      id: crypto.randomUUID(),
+      title: `${questionToDuplicate.title} (copy)`,
     }
-  }, [questions])
+    const newQuestions = [...questions]
+    newQuestions.splice(index + 1, 0, newQuestion)
+    setQuestions(newQuestions)
+    setSelectedQuestionIndex(index + 1)
+    saveForm({ questions: newQuestions })
+  }, [questions, saveForm])
 
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      saveForm()
-    }, 1000)
-    return () => clearTimeout(timeoutId)
-  }, [title, description, questions, formSettings, saveForm])
+  const moveQuestion = useCallback((fromIndex: number, toIndex: number) => {
+    const newQuestions = [...questions]
+    const [movedQuestion] = newQuestions.splice(fromIndex, 1)
+    newQuestions.splice(toIndex, 0, movedQuestion)
+    setQuestions(newQuestions)
+    setSelectedQuestionIndex(toIndex)
+    saveForm({ questions: newQuestions })
+  }, [questions, saveForm])
 
   return (
-    <div className="flex h-screen">
-      {/* Left Sidebar */}
-      <div className="w-64 border-r border-border bg-muted/30">
-        <div className="p-4 border-b border-border">
-          <h2 className="font-medium">Content</h2>
+    <div className="flex h-screen bg-background">
+      {/* Left Sidebar - Question List */}
+      <div className="w-80 border-r border-border flex flex-col">
+        <div className="h-14 border-b border-border flex items-center px-4">
+          <Input
+            value={form.title}
+            onChange={(e) => saveForm({ title: e.target.value })}
+            className="h-9"
+            placeholder="Form title"
+          />
         </div>
-        <ScrollArea className="h-[calc(100vh-57px)]">
+        <div className="flex-1 flex flex-col">
           <div className="p-4 space-y-4">
-            {questions.map((question, index) => (
-              <button
-                key={question.id}
-                onClick={() => setCurrentEditingIndex(index)}
-                className={cn(
-                  'w-full text-left p-3 rounded-lg text-sm',
-                  currentEditingIndex === index
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-accent'
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 flex items-center justify-center rounded-full bg-background/20">
-                    {index + 1}
-                  </span>
-                  <span className="truncate">
-                    {question.title || `Untitled ${question.type.replace('_', ' ')}`}
-                  </span>
-                </div>
-              </button>
-            ))}
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Question
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80" align="start">
-                <ScrollArea className="h-96">
-                  <div className="space-y-4 p-2">
-                    {questionTypes.map((category) => (
-                      <div key={category.category}>
-                        <h4 className="font-medium mb-2">{category.category}</h4>
-                        <div className="space-y-1">
-                          {category.items.map((item) => (
-                            <button
-                              key={item.type}
-                              onClick={() => addQuestion(item.type)}
-                              className="w-full text-left p-2 rounded-lg hover:bg-accent text-sm"
-                            >
-                              <div className="font-medium">{item.label}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {item.description}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                        <Separator className="my-4" />
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </PopoverContent>
-            </Popover>
+            <QuestionList
+              questions={questions}
+              selectedIndex={selectedQuestionIndex}
+              onSelect={setSelectedQuestionIndex}
+              onDelete={deleteQuestion}
+              onDuplicate={duplicateQuestion}
+              onMove={moveQuestion}
+            />
+            <QuestionTypeMenu onSelect={addQuestion} />
           </div>
-        </ScrollArea>
+        </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content - Question Editor */}
       <div className="flex-1 flex flex-col">
-        {/* Top Navigation */}
         <div className="h-14 border-b border-border flex items-center justify-between px-4">
-          <div className="flex items-center gap-4">
-            <button className="text-sm font-medium">Create</button>
-            <button className="text-sm text-muted-foreground">Logic</button>
-            <button className="text-sm text-muted-foreground">Connect</button>
-            <button className="text-sm text-muted-foreground">Share</button>
-            <button className="text-sm text-muted-foreground">Results</button>
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" size="sm" className="text-muted-foreground">
+              <Pencil className="w-4 h-4 mr-2" />
+              Create
+            </Button>
+            <Button variant="ghost" size="sm" className="text-muted-foreground">
+              <Settings2 className="w-4 h-4 mr-2" />
+              Logic
+            </Button>
+            <Button variant="ghost" size="sm" className="text-muted-foreground">
+              <Share2 className="w-4 h-4 mr-2" />
+              Share
+            </Button>
+            <Button variant="ghost" size="sm" className="text-muted-foreground">
+              <BarChart className="w-4 h-4 mr-2" />
+              Results
+            </Button>
           </div>
-          <div className="flex items-center gap-4">
-            <Button onClick={() => router.push(`/forms/${form.id}`)}>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(`/forms/${form.id}`)}
+            >
+              <Eye className="w-4 h-4 mr-2" />
               Preview
             </Button>
-            <Button variant="default">
-              Publish
-            </Button>
+            <Button size="sm">Publish</Button>
           </div>
         </div>
-
-        {/* Form Preview */}
-        <div className="flex-1 bg-background overflow-y-auto">
-          <div className="max-w-3xl mx-auto py-8">
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={questions}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="space-y-4">
-                  {questions.map((question, index) => (
-                    <QuestionCard
-                      key={question.id}
-                      question={question}
-                      index={index}
-                      isEditing={currentEditingIndex === index}
-                      onEdit={() => setCurrentEditingIndex(index)}
-                      onUpdate={(updates) => updateQuestion(index, updates)}
-                      onRemove={() => removeQuestion(index)}
-                    />
-                  ))}
-
-                  {questions.length === 0 && (
-                    <div className="text-center py-12">
-                      <h3 className="text-lg font-medium mb-2">Start building your form</h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Add your first question to get started
-                      </p>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button>
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add Question
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80">
-                          <ScrollArea className="h-96">
-                            <div className="space-y-4 p-2">
-                              {questionTypes.map((category) => (
-                                <div key={category.category}>
-                                  <h4 className="font-medium mb-2">{category.category}</h4>
-                                  <div className="space-y-1">
-                                    {category.items.map((item) => (
-                                      <button
-                                        key={item.type}
-                                        onClick={() => addQuestion(item.type)}
-                                        className="w-full text-left p-2 rounded-lg hover:bg-accent text-sm"
-                                      >
-                                        <div className="font-medium">{item.label}</div>
-                                        <div className="text-xs text-muted-foreground">
-                                          {item.description}
-                                        </div>
-                                      </button>
-                                    ))}
-                                  </div>
-                                  <Separator className="my-4" />
-                                </div>
-                              ))}
-                            </div>
-                          </ScrollArea>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  )}
-                </div>
-              </SortableContext>
-            </DndContext>
-          </div>
-        </div>
-      </div>
-
-      {/* Right Sidebar */}
-      <div className="w-80 border-l border-border bg-muted/30">
-        <Tabs defaultValue="content">
-          <div className="p-4 border-b border-border">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="content">Content</TabsTrigger>
-              <TabsTrigger value="design">Design</TabsTrigger>
-            </TabsList>
-          </div>
-          <ScrollArea className="h-[calc(100vh-105px)]">
-            <TabsContent value="content" className="p-4 space-y-4">
-              {currentEditingIndex !== null ? (
-                <QuestionSettings
-                  question={questions[currentEditingIndex]}
-                  onChange={(updates) => updateQuestion(currentEditingIndex, updates)}
+        <div className="flex-1 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="max-w-3xl mx-auto py-8 px-4">
+              {selectedQuestionIndex !== null ? (
+                <QuestionEditor
+                  question={questions[selectedQuestionIndex]}
+                  onChange={(updates) => updateQuestion(selectedQuestionIndex, updates)}
+                  onDelete={() => deleteQuestion(selectedQuestionIndex)}
+                  onDuplicate={() => duplicateQuestion(selectedQuestionIndex)}
                 />
               ) : (
-                <div className="text-center py-8 text-sm text-muted-foreground">
-                  Select a question to edit its settings
+                <div className="text-center py-12">
+                  <h3 className="text-lg font-medium mb-2">Start building your form</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Add your first question from the menu on the left
+                  </p>
                 </div>
               )}
-            </TabsContent>
-            <TabsContent value="design" className="p-4 space-y-4">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Form Settings</Label>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="progress-bar">Show progress bar</Label>
-                      <Switch
-                        id="progress-bar"
-                        checked={formSettings.showProgressBar}
-                        onCheckedChange={(checked) =>
-                          setFormSettings({ ...formSettings, showProgressBar: checked })
-                        }
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="question-numbers">Show question numbers</Label>
-                      <Switch
-                        id="question-numbers"
-                        checked={formSettings.showQuestionNumbers}
-                        onCheckedChange={(checked) =>
-                          setFormSettings({ ...formSettings, showQuestionNumbers: checked })
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
+            </div>
           </ScrollArea>
-        </Tabs>
+        </div>
       </div>
     </div>
   )

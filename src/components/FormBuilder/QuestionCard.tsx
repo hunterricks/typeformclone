@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { GripVertical, Trash2, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { FormQuestion } from '.'
+import { FormQuestion } from '@/types/form'
 
 interface QuestionCardProps {
   question: FormQuestion

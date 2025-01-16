@@ -1,6 +1,8 @@
+'use client'
+
 import { getForm } from '@/app/actions'
 import FormView from '@/components/FormView'
-import { submitFormResponse } from '@/app/actions'
+import { handleFormSubmit } from './actions'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
@@ -24,14 +26,6 @@ export default async function FormPage({ params }: FormPageProps) {
     )
   }
 
-  const handleSubmit = async (answers: Record<string, any>) => {
-    'use server'
-    await submitFormResponse({
-      formId: form.id,
-      answers,
-    })
-  }
-
   return (
     <div className="flex flex-col min-h-screen">
       <div className="border-b border-border">
@@ -43,7 +37,10 @@ export default async function FormPage({ params }: FormPageProps) {
         </div>
       </div>
       <div className="flex-1 container py-8">
-        <FormView form={form} onSubmit={handleSubmit} />
+        <FormView 
+          form={form} 
+          onSubmit={(answers) => handleFormSubmit(form.id, answers)} 
+        />
       </div>
     </div>
   )

@@ -119,3 +119,35 @@ export async function getForm(id: string) {
   if (error) throw error
   return data
 }
+
+export async function updateForm(formId: string, updates: Partial<Form>) {
+  const cookieStore = cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+      },
+    }
+  )
+
+  const { data: { session } } = await supabase.auth.getSession()
+  
+  if (!session) {
+    throw new Error('Not authenticated')
+  }
+
+  const { data, error } = await supabase
+    .from('forms')
+    .update(updates)
+    .eq('id', formId)
+    .eq('user_id', session.user.id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
